@@ -62,6 +62,15 @@ class CNMP(nn.Module):
         return nll
 
 import os
+import logging
+
+# Setup logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    handlers=[
+                        logging.FileHandler("training.log"),
+                        logging.StreamHandler()
+                    ])
 
 def train():
     while not os.path.exists("trajectories.npy"): # Wait if file not yet created
@@ -115,17 +124,43 @@ def train():
         losses.append(loss.item())
         
         if iter_step % 1000 == 0:
-            print(f"Iteration {iter_step}, Loss: {loss.item():.4f}")
+            logging.info(f"Iteration {iter_step}, Loss: {loss.item():.4f}")
             
     torch.save(model.state_dict(), "cnmp_model.pth")
+    
+    # Generate Plots
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
+    
+    # Linear Plot (New version)
+    ax1.plot(losses)
+    ax1.set_xlabel("Iteration")
+    ax1.set_ylabel("NLL Loss")
+    ax1.set_title("Training Loss Curve (Linear Scale)")
+    ax1.grid(True)
+    
+    # Log Plot (Old version - note: negative values will be hidden)
+    ax2.plot(losses)
+    ax2.set_yscale('log')
+    ax2.set_xlabel("Iteration")
+    ax2.set_ylabel("NLL Loss")
+    ax2.set_title("Training Loss Curve (Log Scale - Negative values hidden)")
+    ax2.grid(True)
+    
+    plt.tight_layout()
+    plt.savefig("loss_curves_comparison.png")
+    plt.close()
+    
+    # Also save the linear one as the main loss_curve.png for consistency
+    plt.figure(figsize=(10, 6))
     plt.plot(losses)
-    plt.yscale('log')
     plt.xlabel("Iteration")
     plt.ylabel("NLL Loss")
     plt.title("Training Loss Curve")
+    plt.grid(True)
     plt.savefig("loss_curve.png")
     plt.close()
-    print("Training complete. Model saved to cnmp_model.pth")
+
+    logging.info("Training complete. Model saved to cnmp_model.pth, plots saved to loss_curves_comparison.png and loss_curve.png")
 
 if __name__ == "__main__":
     train()

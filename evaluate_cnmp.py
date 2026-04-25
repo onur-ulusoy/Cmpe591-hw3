@@ -2,13 +2,14 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from train_cnmp import CNMP
+import hyperparams as hp
 
 def evaluate():
-    data = np.load("trajectories.npy")
+    data = np.load(hp.DATA_PATH)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     model = CNMP().to(device)
-    model.load_state_dict(torch.load("cnmp_model.pth", map_location=device))
+    model.load_state_dict(torch.load(hp.MODEL_PATH, map_location=device))
     model.eval()
     
     ee_mses = []
@@ -23,8 +24,8 @@ def evaluate():
         traj = data_torch[idx]
         
         # Random number of context points
-        n_context = np.random.randint(1, 50)
-        context_ix = np.random.choice(100, n_context, replace=False)
+        n_context = np.random.randint(1, hp.MAX_STEPS // 2)
+        context_ix = np.random.choice(hp.MAX_STEPS, n_context, replace=False)
         
         context_pts = traj[context_ix].unsqueeze(0) # (1, n_context, 6)
         

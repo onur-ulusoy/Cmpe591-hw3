@@ -2,8 +2,9 @@ import numpy as np
 import torch
 import environment
 from homework4 import Hw5Env, bezier
+import hyperparams as hp
 
-def collect_data(num_trajectories=200):
+def collect_data(num_trajectories=hp.NUM_TRAJECTORIES):
     env = Hw5Env(render_mode="offscreen")
     trajectories = []
     
@@ -31,11 +32,11 @@ def collect_data(num_trajectories=200):
         
         if (i + 1) % 1 == 0:
             print(f"Collected {i+1}/{num_trajectories} trajectories.")
-            np.save("trajectories.npy", np.array(trajectories))
+            np.save(hp.DATA_PATH, np.array(trajectories))
 
     trajectories = np.array(trajectories)
-    np.save("trajectories.npy", trajectories)
-    print("Data collection complete. Saved to trajectories.npy")
+    np.save(hp.DATA_PATH, trajectories)
+    print(f"Data collection complete. Saved to {hp.DATA_PATH}")
 
 if __name__ == "__main__":
-    collect_data(200)
+    collect_data(hp.NUM_TRAJECTORIES)

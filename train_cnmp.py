@@ -3,9 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
+import hyperparams as hp
 
 class CNMP(nn.Module):
-    def __init__(self, context_dim=6, query_dim=2, target_dim=4, hidden_size=128, num_layers=4):
+    def __init__(self, context_dim=hp.CONTEXT_DIM, query_dim=hp.QUERY_DIM, 
+                 target_dim=hp.TARGET_DIM, hidden_size=hp.HIDDEN_SIZE, 
+                 num_layers=hp.NUM_LAYERS):
         super(CNMP, self).__init__()
         
         # Encoder: (t, ey, ez, oy, oz, h) -> Representation
@@ -28,7 +31,7 @@ class CNMP(nn.Module):
         self.decoder = nn.Sequential(*layers)
         
         self.target_dim = target_dim
-        self.min_std = 0.01
+        self.min_std = hp.MIN_STD
 
     def forward(self, context_x, context_y, query_x):
         # context_x: (batch, n_context, context_dim)
@@ -68,29 +71,29 @@ import logging
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
                     handlers=[
-                        logging.FileHandler("training.log"),
+                        logging.FileHandler(hp.LOG_PATH),
                         logging.StreamHandler()
                     ])
 
 def train():
-    while not os.path.exists("trajectories.npy"): # Wait if file not yet created
+    while not os.path.exists(hp.DATA_PATH): # Wait if file not yet created
         import time as ttime
         ttime.sleep(5)
     
-    data = np.load("trajectories.npy") # (N, 100, 6) -> [t, ey, ez, oy, oz, h]
+    data = np.load(hp.DATA_PATH) # (N, 100, 6) -> [t, ey, ez, oy, oz, h]
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = CNMP().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=hp.LEARNING_RATE)
     
     # Split data
-    num_train = int(len(data) * 0.8)
+    num_train = int(len(data) * hp.TRAIN_SPLIT)
     train_data = data[:num_train]
     test_data = data[num_train:]
     
     losses = []
-    num_iterations = 20000
-    batch_size = 16
+    num_iterations = hp.NUM_ITERATIONS
+    batch_size = hp.BATCH_SIZE
     
     train_data = torch.from_numpy(train_data).float().to(device)
     
@@ -102,14 +105,12 @@ def train():
         batch_traj = train_data[batch_indices] # (batch, 100, 6)
         
         # Sample number of context and target points for this batch
-        n_context = np.random.randint(1, 40)
-        n_target = np.random.randint(1, 40)
+        n_context = np.random.randint(1, hp.MAX_STEPS // 2)
+        n_target = np.random.randint(1, hp.MAX_STEPS // 2)
         
         # Sample indices for each traj in batch
-        # For simplicity, we use the same number of points, but different indices for each?
-        # Actually, let's use the same indices for the whole batch for efficiency
-        context_ix = np.random.choice(100, n_context, replace=False)
-        target_ix = np.random.choice(100, n_target, replace=False)
+        context_ix = np.random.choice(hp.MAX_STEPS, n_context, replace=False)
+        target_ix = np.random.choice(hp.MAX_STEPS, n_target, replace=False)
         
         context_pts = batch_traj[:, context_ix, :] # (batch, n_context, 6)
         query_x = batch_traj[:, target_ix, :][:, :, [0, 5]] # (batch, n_target, 2)
@@ -126,7 +127,7 @@ def train():
         if iter_step % 1000 == 0:
             logging.info(f"Iteration {iter_step}, Loss: {loss.item():.4f}")
             
-    torch.save(model.state_dict(), "cnmp_model.pth")
+    torch.save(model.state_dict(), hp.MODEL_PATH)
     
     # Generate Plots
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
